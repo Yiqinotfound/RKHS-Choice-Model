@@ -1,0 +1,69 @@
+attention_ntk_model_args:
+  smoothing: 0.01 
+  test_size: 0.1
+  SEED: 42
+  learning_rate: 0.01
+  add_noise: True
+  batch_size: 512
+  tau: 0.00001
+  activation: "softmax"
+  H: 1000
+  sigma: 0.01
+  momentum: 0.9
+  test_size: 0.1
+  grad_norm_threshold: 0
+  patience: 20
+  n_splits: 9
+  preprocess_mode: "rumnet"
+
+SEED: 42
+
+swiss_metro_rf_args:
+  kernel_type: "gaussian"
+  kernel_params:
+    sigma: 5
+    lengthscale: 3.6
+  Nw: 20000
+  rho: 1000
+  tol: 0.000000001
+  eps: 0.000000001
+  smoothing: 0.01 
+  n_splits: 9
+  theta_std: 0.001
+  lr: 0.01 
+  lambda: 0.0000000001
+  patience: 10
+  SEED : 42
+  learning_rate: 0.01
+
+swiss_metro_fk_args:
+  kernel_type: "2.5matern"
+  SEED: 42
+  learning_rate: 0.01 
+  lambda: 0.00005
+  patience: 20
+  alpha_std: 0.01 
+  smoothing: 0.01
+  n_splits: 9
+  test_size: 0.1
+  precompute_batch_size: 1500
+  optimizer: "LBFGS"
+  max_epochs: 100
+
+# Adam optimizer is extremely unstable!!
+# swiss_metro_fk_args:
+#   kernel_type: "0.5matern"
+#   SEED: 42
+#   learning_rate: 0.01 
+#   lambda: 0.00005
+#   patience: 100
+#   alpha_std: 0.01 
+#   smoothing: 0.01
+#   n_splits: 9
+#   test_size: 0.1
+#   precompute_batch_size: 1500
+#   optimizer: "Adam"
+#   max_epochs: 1000
+
+
+

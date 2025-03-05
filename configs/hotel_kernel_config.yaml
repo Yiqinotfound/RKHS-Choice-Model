@@ -1,0 +1,31 @@
+gaussian:
+  length_scale: 1.0
+  sigma: 1.0
+
+sigmoid:
+  alpha: 0.5
+  c: 1.0
+  sigma: 1.0 
+
+poly:
+  c: 1.0 
+  degree: 2 
+
+linear:
+  c: 1.0 
+  degree: 1
+
+0.5matern:
+  sigma: 1 
+  length_scale: 1 
+  nu: 0.5
+
+1.5matern:
+  sigma: 1 
+  length_scale: 1 
+  nu: 0.5
+
+2.5matern:
+  sigma: 1 
+  length_scale: 1 
+  nu: 0.5

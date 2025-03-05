@@ -1,0 +1,13 @@
+junk/
+.vscode/
+Figs/
+hotel_benchmarks/
+results/ 
+rf/
+
+# pycache
+__pycache__/
+
+# 忽略所有 .pyc 文件
+*.pyc
+
