@@ -7,7 +7,7 @@ attention_ntk_model_args:
   batch_size: 512
   tau: 0.00001
   activation: "softmax"
-  H: 1000
+  H: 32
   sigma: 0.01
   momentum: 0.9
   test_size: 0.1
@@ -22,7 +22,7 @@ swiss_metro_rf_args:
   kernel_type: "gaussian"
   kernel_params:
     sigma: 5
-    lengthscale: 3.6
+    lengthscale: 1
   Nw: 20000
   rho: 1000
   tol: 0.000000001
@@ -37,7 +37,7 @@ swiss_metro_rf_args:
   learning_rate: 0.01
 
 swiss_metro_fk_args:
-  kernel_type: "0.5matern"
+  kernel_type: "1.5matern"
   SEED: 42
   learning_rate: 0.01 
   lambda: 0.00005

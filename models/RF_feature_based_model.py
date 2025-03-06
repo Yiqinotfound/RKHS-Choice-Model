@@ -87,7 +87,7 @@ class GaussianRFFB:
         Optimize the distribution of the features.
         """
 
-        print("Begining Optimization Distribution")
+        print("Begin Optimizing Distribution")
 
         self.X_train, self.y_train, self.cardinality_train = dataset_train
         self.X_val, self.y_val, self.cardinality_val = dataset_val

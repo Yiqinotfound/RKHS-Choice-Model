@@ -86,17 +86,20 @@ if __name__ == "__main__":
     kernel_config_path = "configs/swissmetro_kernel_config.yaml"
     save_path = "real_data_experiments/swissmetro_FK_results/swissmetro_FK_results.csv"
     model_args = load_config(exp_config_path)["swiss_metro_fk_args"]
-    kernel_args = load_config(kernel_config_path)
-    dataset = SwissMetroDataset(
-        filepath=data_path,
-        preprocess_mode="rumnet",
-    )
+    kernel_type_list = ["gaussian", "1.5matern", "2.5matern"]
+    for kernel_type in kernel_type_list: 
+        model_args["kernel_type"] = kernel_type
+        kernel_args = load_config(kernel_config_path)
+        dataset = SwissMetroDataset(
+            filepath=data_path,
+            preprocess_mode="rumnet",
+        )
 
-    datasize = dataset.X.shape[0]
-    print(f"Has total {datasize} samples")
+        datasize = dataset.X.shape[0]
+        print(f"Has total {datasize} samples")
 
-    cross_validate(
-        dataset=dataset,
-        model_args=model_args,
-        kernel_args=kernel_args,
-    )
+        cross_validate(
+            dataset=dataset,
+            model_args=model_args,
+            kernel_args=kernel_args,
+        )
