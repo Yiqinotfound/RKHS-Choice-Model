@@ -44,7 +44,7 @@ def cross_validate(dataset: SwissMetroDataset, model_args: dict):
 
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
 model_args = load_config("configs/exp_config.yaml")["swiss_metro_rf_args"]
 data_path = "data/swissmetro/swissmetro.dat"
 save_path = "real_data_experiments/swissmetro_RF_results/swissmetro_RF_results.csv"

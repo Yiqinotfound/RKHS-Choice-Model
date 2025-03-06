@@ -37,7 +37,7 @@ swiss_metro_rf_args:
   learning_rate: 0.01
 
 swiss_metro_fk_args:
-  kernel_type: "2.5matern"
+  kernel_type: "0.5matern"
   SEED: 42
   learning_rate: 0.01 
   lambda: 0.00005
@@ -50,20 +50,29 @@ swiss_metro_fk_args:
   optimizer: "LBFGS"
   max_epochs: 100
 
-# Adam optimizer is extremely unstable!!
-# swiss_metro_fk_args:
-#   kernel_type: "0.5matern"
-#   SEED: 42
-#   learning_rate: 0.01 
-#   lambda: 0.00005
-#   patience: 100
-#   alpha_std: 0.01 
-#   smoothing: 0.01
-#   n_splits: 9
-#   test_size: 0.1
-#   precompute_batch_size: 1500
-#   optimizer: "Adam"
-#   max_epochs: 1000
+
+hotel_fk_args:
+  instance_id: 5
+  kernel_type: "gaussian"
+  learning_rate: 0.001 
+  alpha_std: 0.001 
+  grad_norm_threshold: 0.0001 
+  lambda: 0.00001 
+  reg_batch: 1024
+  max_epochs: 1000
+
+
+hotel_ntk_args:
+  instance_id: 1
+  activation: "sigmoid"
+  sigma: 0.01
+  beta: 0
+  learning_rate: 0.01
+  optimizer: "Adam"
+  H: [1024]
+  max_epochs: 1000
+  batch_size: 1024
+
 
 
 

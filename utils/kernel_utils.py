@@ -198,7 +198,7 @@ def compute_gaussian_kernel_tensor_FB(
     sigma = kernel_params["sigma"]
     m = X.shape[0]
     n = Y.shape[0]
-    d = X.shape[2]
+    d = X.shape[1]
 
     result = torch.zeros((m, n, d, d), dtype=torch.float32, device=X.device)
     # print(result.shape)

@@ -47,6 +47,7 @@ def cross_entropy(U: torch.Tensor, y: torch.Tensor, mask_tensor: torch.Tensor):
     return loss
 
 
+
 # compute probs for feature-based model
 def compute_P_FB(U: torch.Tensor, cardinality: torch.Tensor, mask: bool):
     d = U.shape[1]
@@ -70,7 +71,8 @@ def compute_P(U: torch.Tensor, mask_tensor: torch.Tensor):
     U_max = torch.max(U)
     U_stable = U - U_max
     exp_U = torch.exp(U_stable)
-    exp_U = exp_U * mask_tensor
+    if mask_tensor is not None:
+        exp_U = exp_U * mask_tensor
     sum_exp_U = torch.sum(exp_U, dim=1, keepdim=True)
     P = exp_U / sum_exp_U
     return P

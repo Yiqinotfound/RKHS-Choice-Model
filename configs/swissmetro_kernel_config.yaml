@@ -1,18 +1,19 @@
 gaussian:
-  length_scale: 5
-  sigma: 1 
+  sigma: 5 
+  length_scale: 4
+
 
 0.5matern:
   sigma: 5
   nu: 0.5
-  length_scale: 1
+  length_scale: 4
 
 1.5matern:
   sigma: 5
   nu: 1.5
-  length_scale: 1
+  length_scale: 4
 
 2.5matern:
   sigma: 5
   nu: 2.5
-  length_scale: 1
+  length_scale: 4

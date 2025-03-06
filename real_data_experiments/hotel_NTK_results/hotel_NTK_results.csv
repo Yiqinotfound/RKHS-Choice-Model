@@ -1,0 +1,2 @@
+instance_id,activation,sigma,beta,learning_rate,optimizer,H,max_epochs,batch_size,nll_train,nll_test,rmse_train,rmse_test
+1,sigmoid,0.01,0,0.01,Adam,[1024],1000,1024,0.7882397770881653,0.7829869985580444,0.2150251716375351,0.2216532975435257

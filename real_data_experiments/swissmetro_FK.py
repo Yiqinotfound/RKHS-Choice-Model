@@ -84,10 +84,9 @@ if __name__ == "__main__":
     data_path = "data/swissmetro/swissmetro.dat"
     exp_config_path = "configs/exp_config.yaml"
     kernel_config_path = "configs/swissmetro_kernel_config.yaml"
-    save_path = "experiments/swissmetro_FK_results/swissmetro_FK_results.csv"
+    save_path = "real_data_experiments/swissmetro_FK_results/swissmetro_FK_results.csv"
     model_args = load_config(exp_config_path)["swiss_metro_fk_args"]
     kernel_args = load_config(kernel_config_path)
-
     dataset = SwissMetroDataset(
         filepath=data_path,
         preprocess_mode="rumnet",
