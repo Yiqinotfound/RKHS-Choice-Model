@@ -12,3 +12,7 @@ __pycache__/
 *.pyc
 
 Feature_AssortmentNN-main/
+
+choice-learn-main/
+
+data/expedia/

@@ -7,7 +7,7 @@ attention_ntk_model_args:
   batch_size: 512
   tau: 0.00001
   activation: "softmax"
-  H: 32
+  H: 4000
   sigma: 0.01
   momentum: 0.9
   test_size: 0.1
@@ -15,6 +15,7 @@ attention_ntk_model_args:
   patience: 20
   n_splits: 9
   preprocess_mode: "rumnet"
+  max_epochs: 100
 
 SEED: 42
 
@@ -30,9 +31,8 @@ swiss_metro_rf_args:
   smoothing: 0.01 
   n_splits: 9
   theta_std: 0.001
-  lr: 0.01 
   lambda: 0.0000000001
-  patience: 10
+  patience: 15
   SEED : 42
   learning_rate: 0.01
 
@@ -72,6 +72,25 @@ hotel_ntk_args:
   H: [1024]
   max_epochs: 1000
   batch_size: 1024
+
+expedia_ntk_model_args:
+  smoothing: 0 
+  test_size: 0.2
+  SEED: 42
+  learning_rate: 0.01
+  add_noise: True
+  batch_size: 512
+  tau: 0.00001
+  activation: "softmax"
+  H: 1000
+  sigma: 0.01
+  momentum: 0.9
+  test_size: 0.1
+  grad_norm_threshold: 0
+  patience: 20
+  max_epochs: 100
+
+
 
 
 

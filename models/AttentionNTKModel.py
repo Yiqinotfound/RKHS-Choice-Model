@@ -125,8 +125,8 @@ class AttentionNTKChoiceModel(nn.Module):
 
         print(f"Start Training...")
         
-        with tqdm(total=50, desc="Training", unit="epoch") as pbar:
-            for epoch in range(50):
+        with tqdm(total=self.model_config["max_epochs"], desc="Training", unit="epoch") as pbar:
+            for epoch in range(self.model_config["max_epochs"]):
                 total_train_loss = 0.0
                 for X_batch, y_batch, cardinality_batch in train_loader:
                     mask_batch = compute_mask_from_card(
