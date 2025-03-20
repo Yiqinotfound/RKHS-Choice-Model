@@ -4,6 +4,7 @@ import torch
 import gc
 import sys
 import yaml
+import torch.nn.functional as F
 sys.path.append("/data/yiqi/RKHSChoiceModel/")
 
 
@@ -39,3 +40,11 @@ def load_config(config_path:str):
     with open(config_path, 'r') as file:
         config = yaml.safe_load(file)
     return config
+
+def create_one_hot_from_choices(choice:torch.Tensor, d:int):
+    assert choice.dtype == torch.int64, "输入张量必须是整数类型"
+    assert choice.max() < d, "张量中的最大值必须小于d"
+    
+    one_hot = F.one_hot(choice, num_classes=d)
+    
+    return one_hot.float()

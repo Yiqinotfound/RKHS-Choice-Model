@@ -1,0 +1,21 @@
+swissmetro_TCNet:
+  num_heads: 16
+  hidden_dim: 128 
+  drop_out: 0.1 
+  weight_decay: 0 
+  batch_size: 256 
+  step_size: 10
+  learning_rate: 0.001
+  SEED: 42
+  max_epochs: 100
+  prod_fea: 0
+  emb_need: True
+  multi_purchase: False
+  preprocess_mode: "rumnet"
+  test_size: 0.1
+  n_splits: 9
+  gamma: 0.95
+  smoothing: 0.01
+
+
+

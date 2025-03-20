@@ -70,12 +70,17 @@ def compute_P_FB(U: torch.Tensor, cardinality: torch.Tensor, mask: bool):
 def compute_P(U: torch.Tensor, mask_tensor: torch.Tensor):
     U_max = torch.max(U)
     U_stable = U - U_max
-    exp_U = torch.exp(U_stable)
+    exp_U = torch.exp(U_stable) 
     if mask_tensor is not None:
         exp_U = exp_U * mask_tensor
     sum_exp_U = torch.sum(exp_U, dim=1, keepdim=True)
     P = exp_U / sum_exp_U
     return P
+
+# gerneral compute P function (more stable implementation)                                                                                                                                              \                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+
+def compute_P_stable(U:torch.Tensor, mask_tensor:torch.Tensor):
+    pass
 
 
 # compute mask from card

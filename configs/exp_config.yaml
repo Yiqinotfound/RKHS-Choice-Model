@@ -7,17 +7,20 @@ attention_ntk_model_args:
   batch_size: 512
   tau: 0.00001
   activation: "softmax"
-  H: 4000
+  H: 100
   sigma: 0.01
   momentum: 0.9
-  test_size: 0.1
   grad_norm_threshold: 0
   patience: 20
   n_splits: 9
   preprocess_mode: "rumnet"
   max_epochs: 100
+  mixed_precision: False
+  half: False   
 
 SEED: 42
+
+
 
 swiss_metro_rf_args:
   kernel_type: "gaussian"
@@ -75,20 +78,23 @@ hotel_ntk_args:
 
 expedia_ntk_model_args:
   smoothing: 0 
-  test_size: 0.2
+  test_size: 0.1
   SEED: 42
-  learning_rate: 0.01
-  add_noise: True
+  learning_rate: 0.1
+  add_noise: False
   batch_size: 512
   tau: 0.00001
   activation: "softmax"
-  H: 1000
-  sigma: 0.01
+  H: 100
+  sigma: 0.001
   momentum: 0.9
-  test_size: 0.1
   grad_norm_threshold: 0
-  patience: 20
+  patience: 40
   max_epochs: 100
+  mixed_precision: True
+  half: False
+  n_splits: 9
+
 
 
 

@@ -9,8 +9,10 @@ from utils.creterias_and_loss_utils import (
     safe_log,
     compute_mask_from_card,
 )
+from utils.model_utils import report_memory
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
+
 
 class AttentionNTKChoiceModel(nn.Module):
     def __init__(self, d, d0, d2, model_config: dict):
@@ -19,39 +21,50 @@ class AttentionNTKChoiceModel(nn.Module):
         self.d0 = d0
         self.activation = model_config["activation"]
         self.sigma = model_config["sigma"]
-
-        # 合并多头参数
-        self.Theta1 = nn.Linear(d, self.H * d0, bias=False)  # 合并所有头的Q变换
-        self.Theta2 = nn.Linear(d, self.H * d0, bias=False)  # 合并所有头的K变换
-        self.Theta3 = nn.Linear(d, self.H * d2, bias=False)  # 合并所有头的V变换
-
-        self.w = nn.Parameter(torch.randn(self.H, d2))
-
-        self._init_weights(sigma=self.sigma)
+        self.half = model_config["half"]
 
         self.model_config = model_config
 
-    def _init_weights(self, sigma: float = 1):
+        self.dtype = torch.float16 if self.half else torch.float32
 
-        nn.init.normal_(self.Theta1.weight, mean=0, std=sigma)
-        nn.init.normal_(self.Theta2.weight, mean=0, std=sigma)
-        nn.init.normal_(self.Theta3.weight, mean=0, std=sigma)
-        nn.init.normal_(self.w, mean=0, std=sigma)
+        self.Theta1 = nn.Linear(d, self.H * d0, bias=False, dtype=self.dtype)
+        self.Theta2 = nn.Linear(d, self.H * d0, bias=False, dtype=self.dtype)
+        self.Theta3 = nn.Linear(d, self.H * d2, bias=False, dtype=self.dtype)
+
+        self.w = nn.Parameter(torch.randn(self.H, d2, dtype=self.dtype))
+
+        self._init_weights(sigma=self.sigma)
+
+    def _init_weights(self, sigma: float = 1):
+        def init_linear(layer):
+            weight_tensor = torch.empty_like(layer.weight, dtype=self.dtype)
+            nn.init.normal_(weight_tensor, mean=0, std=sigma)
+            layer.weight = nn.Parameter(weight_tensor)
+
+        init_linear(self.Theta1)
+        init_linear(self.Theta2)
+        init_linear(self.Theta3)
+        nn.init.normal_(self.w.data, mean=0, std=sigma)
+        self.w = nn.Parameter(self.w.data.to(dtype=self.dtype))
 
     def forward(self, X: torch.Tensor, mask: torch.Tensor):
         batch_size, max_items, d = X.shape
 
-        Q = self.Theta1(X).view(batch_size, max_items, self.H, self.d0)  # (B, L, H, d0)
-        K = self.Theta2(X).view(batch_size, max_items, self.H, self.d0)  # (B, L, H, d0)
-        V = self.Theta3(X).view(batch_size, max_items, self.H, -1)  # (B, L, H, d2)
+        Q = self.Theta1(X).view(batch_size, max_items, self.H, self.d0)  # (B, J, H, d0)
+        K = self.Theta2(X).view(batch_size, max_items, self.H, self.d0)  # (B, J, H, d0)
+        V = self.Theta3(X).view(batch_size, max_items, self.H, -1)  # (B, J, H, d2)
 
         # 注意力得分计算（向量化）
-        attn_scores = torch.einsum("blhd,bmhd->bhlm", Q, K)  # (B, H, L, L)
+        attn_scores = torch.einsum("blhd,bmhd->bhlm", Q, K)  # (B, H, J, J)
         attn_scores = attn_scores / (self.d0**0.5)
+        
 
-        attn_mask = mask.unsqueeze(1).unsqueeze(1)  # (B, 1, 1, L)
-        attn_mask = attn_mask & attn_mask.transpose(2, 3)  # (B, 1, L, L)
-        attn_scores = attn_scores.masked_fill(~attn_mask, -1e9)
+        attn_mask = mask.unsqueeze(1).unsqueeze(1)  # (B, 1, 1, J)
+        attn_mask = attn_mask & attn_mask.transpose(2, 3)  # (B, 1, J, J)
+        if self.half:
+            attn_scores = attn_scores.masked_fill(~attn_mask, -1e4)
+        else:
+            attn_scores = attn_scores.masked_fill(~attn_mask, -1e4)
 
         # print(attn_scores[0])
         # 计算注意力权重
@@ -59,21 +72,24 @@ class AttentionNTKChoiceModel(nn.Module):
         if self.activation == "softmax":
             attn_weights = F.softmax(attn_scores, dim=-1)
         else:
-            print("fuck")
-        # print(attn_weights[0])
+            print("not supprted")
+        # print(attn_weights.shape)
 
         # 加权求和（向量化）
-        outputs = torch.einsum("bhlm,bmhd->blhd", attn_weights, V)  # (B, L, H, d2)
+        outputs = torch.einsum("bhlm,bmhd->blhd", attn_weights, V)  # (B, J, H, d2)
 
         # 最终投影（保持不变）
         # weights = self.w[None, None, ...]  # (1, 1, H, d2)
         v = torch.einsum("blhd,hd->bl", outputs, self.w) / (self.H**0.5)
 
-        # mask = mask.float()
-        v = v.masked_fill(~mask, -1e9)
+        # 如果使用半精度， 就将-1e7 换成 -1e4
+        if self.half:
+            v = v.masked_fill(~mask, -1e4)
+        else:
+            v = v.masked_fill(~mask, -1e4)
 
         # 6. 概率计算
-        probs = torch.softmax(v, dim=-1)  # 确保padding位置概率为0
+        probs = torch.softmax(v, dim=-1)
         return probs
 
     def cross_entropy(self, P: torch.Tensor, Y: torch.Tensor):
@@ -81,39 +97,62 @@ class AttentionNTKChoiceModel(nn.Module):
 
     def fit(
         self,
-        dataset_train: tuple,
-        dataset_val: tuple,
-        dataset_test: tuple,
-        device: torch.device,
+        dataset_train: tuple[torch.Tensor, torch.Tensor, torch.Tensor],
+        dataset_val: tuple[torch.Tensor, torch.Tensor, torch.Tensor] = None,
+        dataset_test: tuple[torch.Tensor, torch.Tensor, torch.Tensor] = None,
+        device: torch.device = "cpu",
     ):
         self.train()
-        
+
+        # record the start time
         t1 = time.time()
+
+        # train and test data, max_items
         self.X_train, self.y_train, self.cardinality_train = dataset_train
-        self.X_val, self.y_val, self.cardinality_val = dataset_val
         self.X_test, self.y_test, self.cardinality_test = dataset_test
         self.max_items = self.X_train.shape[1]
 
-        self.patience_counter = 0
-        self.patience = self.model_config["patience"]
-
+        # smoothed train and test labels
         self.y_train_smooth = (
             1 - self.model_config["smoothing"]
         ) * self.y_train + self.model_config["smoothing"] / self.max_items
-        self.y_val_smooth = (
-            1 - self.model_config["smoothing"]
-        ) * self.y_val + self.model_config["smoothing"] / self.max_items
+
         self.y_test_smooth = (
             1 - self.model_config["smoothing"]
         ) * self.y_test + self.model_config["smoothing"] / self.max_items
 
-        train_dataset = TensorDataset(
-            self.X_train, self.y_train_smooth, self.cardinality_train
+        # train dataset and train loader
+        self.train_dataset = TensorDataset(
+            self.X_train, self.y_train, self.cardinality_train
+        )
+        self.train_loader = DataLoader(
+            self.train_dataset, batch_size=self.model_config["batch_size"], shuffle=True
         )
 
-        train_loader = DataLoader(
-            train_dataset, batch_size=self.model_config["batch_size"], shuffle=True
-        )
+        # if validation dataset exists, then fit with validation
+        if dataset_val is not None:
+            self.X_val, self.y_val, self.cardinality_val = dataset_val
+            self.y_val_smooth = (
+                1 - self.model_config["smoothing"]
+            ) * self.y_val + self.model_config["smoothing"] / self.max_items
+
+            # if mixed precision is True, then fit with mixed precision
+            if self.model_config["mixed_precision"]:
+                self.fit_mixed_precision_with_val(device=device)
+            else:
+                self.fit_full_precision_with_val(device=device)
+        else:
+            print("current model doesn't support no validation training")
+            pass
+        t2 = time.time()
+        self.train_time = t2 - t1
+
+    def fit_full_precision_with_val(self, device: torch.device):
+
+        self.train()
+
+        self.patience_counter = 0
+        self.patience = self.model_config["patience"]
 
         optimizer = torch.optim.Adam(
             params=self.parameters(),
@@ -124,11 +163,12 @@ class AttentionNTKChoiceModel(nn.Module):
         self.best_parameters = None
 
         print(f"Start Training...")
-        
-        with tqdm(total=self.model_config["max_epochs"], desc="Training", unit="epoch") as pbar:
+
+        with tqdm(
+            total=self.model_config["max_epochs"], desc="Training", unit="epoch"
+        ) as pbar:
             for epoch in range(self.model_config["max_epochs"]):
-                total_train_loss = 0.0
-                for X_batch, y_batch, cardinality_batch in train_loader:
+                for X_batch, y_batch, cardinality_batch in self.train_loader:
                     mask_batch = compute_mask_from_card(
                         cardinality=cardinality_batch, d=X_batch.shape[1]
                     )
@@ -148,9 +188,7 @@ class AttentionNTKChoiceModel(nn.Module):
                             for param in self.parameters():
                                 noise = torch.randn_like(param.data)
                                 param.data.add_(noise, alpha=scale)
-                    total_train_loss += nll_train_batch.item() * X_batch.size(0)
 
-                # print(f"Epoch {epoch+1}, Train Loss: {avg_train_loss:.4f}")
                 self.eval()
                 self.evaluate(device)
                 if self.nll_val < self.best_val_loss:
@@ -164,13 +202,107 @@ class AttentionNTKChoiceModel(nn.Module):
                 if self.patience_counter > self.patience:
                     pbar.close()
                     break
-                
-                pbar.set_postfix({"Train Loss": self.nll_train, "Val Loss": self.nll_val, "Test Loss": self.nll_test, "Patience": self.patience_counter})
+
+                pbar.set_postfix(
+                    {
+                        "Train Loss": self.nll_train,
+                        "Val Loss": self.nll_val,
+                        "Test Loss": self.nll_test,
+                        "Patience": self.patience_counter,
+                    }
+                )
                 pbar.update(1)
                 self.train()
 
-        t2 = time.time()
-        self.train_time = t2 - t1
+        self.load_state_dict(self.best_parameters)
+
+    def fit_mixed_precision_with_val(
+        self,
+        device: torch.device,
+    ):
+        print("Fittiing with mixed precision (have validation set)")
+
+        self.best_val_loss = 1e4
+        self.patience = self.model_config["patience"]
+        self.patience_counter = 0
+        self.best_parameters = None
+        optimizer = torch.optim.Adam(
+            params=self.parameters(),
+            lr=self.model_config["learning_rate"],
+            weight_decay=0,
+        )
+        scaler = torch.amp.GradScaler()
+
+        with tqdm(
+            total=self.model_config["max_epochs"], desc="Training", unit="epoch"
+        ) as pbar:
+            for eppch in range(self.model_config["max_epochs"]):
+                with torch.no_grad():
+                    mask_val = compute_mask_from_card(
+                        cardinality=self.cardinality_val, d=self.max_items
+                    )
+                    P_val = self.compute_prob_batch(
+                        self.X_val, mask_val, batch_size=256, device=device
+                    )
+                    self.nll_val = self.cross_entropy(
+                        P_val, self.y_val_smooth.to(device)
+                    ).item()
+                    self.acc_val = self.compute_acc(P_val, self.y_val.to(device))
+                print("nll_val:", self.nll_val, "acc_val:", self.acc_val)
+                for X_batch, y_batch, cardinality_batch in self.train_loader:
+                    mask_batch = compute_mask_from_card(
+                        cardinality=cardinality_batch, d=self.max_items
+                    )
+                    X_batch = X_batch.to(device, dtype=torch.float32)
+                    y_batch = y_batch.to(device, dtype=torch.float32)
+                    mask_batch = mask_batch.to(device)
+
+                    with torch.amp.autocast(device_type="cuda"):
+                        optimizer.zero_grad()
+                        # print(self.w.dtype)
+                        prob_train_batch = self.forward(X=X_batch, mask=mask_batch)
+                        nll_train_batch = self.cross_entropy(prob_train_batch, y_batch)
+
+                    scaler.scale(nll_train_batch).backward()
+
+                    scaler.step(optimizer)
+                    scaler.update()
+
+                    if self.model_config["add_noise"]:
+                        current_lr = optimizer.param_groups[0]["lr"]
+                        scale = current_lr * self.model_config["tau"]
+                        with torch.no_grad(), torch.amp.autocast(device_type="cuda"):
+                            for param in self.parameters():
+                                noise = torch.randn_like(param.data)
+                                param.data.add_(noise, alpha=scale)
+
+
+                if self.nll_val < self.best_val_loss:
+                    self.best_val_loss = self.nll_val
+                    self.best_parameters = {
+                        k: v.clone() for k, v in self.state_dict().items()
+                    }
+                else:
+                    self.patience_counter += 1
+
+                if self.patience_counter > self.patience:
+                    pbar.close()
+                    break
+
+                pbar.set_postfix(
+                    {
+                        "Val Loss": self.nll_val,
+                        "Val Acc": self.acc_val,
+                        "Patience": self.patience_counter,
+                    }
+                )
+                pbar.update(1)
+                self.train()
+
+        optimizer.state.clear()
+        del scaler
+        del optimizer
+        report_memory(device)
 
         self.load_state_dict(self.best_parameters)
 
@@ -186,11 +318,11 @@ class AttentionNTKChoiceModel(nn.Module):
             for i in range(0, len(X_full), batch_size):
                 X_batch = X_full[i : i + batch_size].to(device)
                 mask_batch = mask_full[i : i + batch_size].to(device)
-                probs_batch = self.forward(X_batch, mask_batch)
+                probs_batch = self.forward(X_batch.to(torch.float32), mask_batch)
                 all_probs.append(probs_batch.cpu())
 
         return torch.cat(all_probs, dim=0).to(device)
-    
+
     def compute_acc(self, P: torch.Tensor, Y: torch.Tensor):
         P_max = torch.argmax(P, dim=1)
         Y_max = torch.argmax(Y, dim=1)
@@ -198,26 +330,31 @@ class AttentionNTKChoiceModel(nn.Module):
 
     def evaluate(self, device):
         with torch.no_grad():
-            max_items = self.X_val.shape[1]
+            max_items = self.X_train.shape[1]
 
             mask_train = compute_mask_from_card(
                 cardinality=self.cardinality_train, d=max_items
             )
             P_train = self.compute_prob_batch(self.X_train, mask_train, device=device)
-            self.nll_train = self.cross_entropy(P_train, self.y_train_smooth.to(device)).item()
+            self.nll_train = self.cross_entropy(
+                P_train, self.y_train_smooth.to(device)
+            ).item()
             self.acc_train = self.compute_acc(P_train, self.y_train.to(device))
-            
+
             mask_val = compute_mask_from_card(
                 cardinality=self.cardinality_val, d=max_items
             )
             P_val = self.compute_prob_batch(self.X_val, mask_val, device=device)
-            self.nll_val = self.cross_entropy(P_val, self.y_val_smooth.to(device)).item()
+            self.nll_val = self.cross_entropy(
+                P_val, self.y_val_smooth.to(device)
+            ).item()
             self.acc_val = self.compute_acc(P_val, self.y_val.to(device))
-            
+
             mask_test = compute_mask_from_card(
                 cardinality=self.cardinality_test, d=max_items
             )
             P_test = self.compute_prob_batch(self.X_test, mask_test, device=device)
-            self.nll_test = self.cross_entropy(P_test, self.y_test_smooth.to(device)).item()
+            self.nll_test = self.cross_entropy(
+                P_test, self.y_test_smooth.to(device)
+            ).item()
             self.acc_test = self.compute_acc(P_test, self.y_test.to(device))
-            
