@@ -1,16 +1,18 @@
 import sys, os
+import torch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
-import torch
-from context_benchmark_models.TCNet import TransformerChoiceNet
+
+from context_benchmark_models.fatenet.fate import FATEScoring
+from data_preprocess.swissmetros_data_loader import SwissMetroDataset
 from utils.model_utils import load_config, save_to_csv
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 import numpy as np
-from data_preprocess.swissmetros_data_loader import SwissMetroDataset
 
 
 def cross_validate(dataset: SwissMetroDataset, model_args: dict):
+    datasize = len(dataset)
     temp_idx, test_idx = train_test_split(
         np.arange(datasize),
         test_size=model_args["test_size"],  # First split 90-10
@@ -30,7 +32,9 @@ def cross_validate(dataset: SwissMetroDataset, model_args: dict):
         dataset_val = dataset[val_idx]
         dataset_test = dataset[test_idx]
 
-        model = TransformerChoiceNet(model_args=model_args, device=device)
+        model = FATEScoring(
+            n_features=dataset.feature_vec_length, model_args=model_args
+        ).to(device)
         model.fit(dataset_train, dataset_val, dataset_test, device)
         model.evaluate(device=device)
 
@@ -67,32 +71,22 @@ def cross_validate(dataset: SwissMetroDataset, model_args: dict):
 
 
 device = torch.device("cuda")
-config_path = "configs/benchmark_config.yaml"
+
 
 swiss_path = "data/swissmetro/swissmetro.dat"
-model_args = load_config(config_path=config_path)["swissmetro_TCNet"]
+config_path = "configs/benchmark_config.yaml"
 save_path = (
-    "benchmark_experiments/swissmetro_TCNet_results/swissmetro_TCNet_results.csv"
+    "benchmark_experiments/swissmetro_FATENet_results/swissmetro_FATENet_results.csv"
 )
 
+dataset = SwissMetroDataset(filepath=swiss_path, preprocess_mode="rumnet")
+model_args = load_config(config_path=config_path)["swissmetro_FATENet"]
+# n_features = dataset.feature_vec_length
 
-dataset = SwissMetroDataset(
-    filepath=swiss_path, preprocess_mode=model_args["preprocess_mode"]
-)
+# # model = FATEScoring(n_features=n_features)
+# # utils = model(dataset.X)
+# # print(utils)
+# # print(utils.shape)
 
-datasize = len(dataset)
-input_dim = dataset.X.shape[-1]
-model_args["input_dim"] = int(input_dim)
-hidden_dim_list = [128, 256, 512]
-num_heads_list = [4, 8, 16, 32]
-lr_list = [0.001, 0.0005, 0.0001]
-for hidden_dim in hidden_dim_list:
-    for num_heads in num_heads_list: 
-        for lr in lr_list:
-            model_args["hidden_dim"] = hidden_dim
-            model_args["num_heads"] = num_heads
-            model_args["learning_rate"] = lr
-            cross_validate(dataset=dataset, model_args=model_args)
-
+cross_validate(dataset=dataset, model_args=model_args)
 # print(model_args)
-# print(dataset.X.shape)

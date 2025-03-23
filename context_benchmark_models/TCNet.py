@@ -382,6 +382,7 @@ class TransformerChoiceNet(nn.Module):
             weight_decay=self.model_args["weight_decay"],
         )
 
+
         scheduler = StepLR(
             optimizer=optimizer,
             step_size=self.model_args["step_size"],
@@ -403,7 +404,7 @@ class TransformerChoiceNet(nn.Module):
                     prob_train_batch = self.forward(src=X_batch)
                     nll_train_batch = self.cross_entropy(P=prob_train_batch, Y=y_batch)
                     nll_train_batch.backward()
-                    # nn.utils.clip_grad_norm_(self.parameters(), 1)
+                    nn.utils.clip_grad_norm_(self.parameters(), 1)
                     optimizer.step()
                     total_train_loss += nll_train_batch.item()
 

@@ -1,13 +1,13 @@
 swissmetro_TCNet:
   num_heads: 16
-  hidden_dim: 128 
-  drop_out: 0.1 
-  weight_decay: 0 
-  batch_size: 256 
+  hidden_dim: 128
+  drop_out: 0.1
+  weight_decay: 0
+  batch_size: 256
   step_size: 10
   learning_rate: 0.001
   SEED: 42
-  max_epochs: 100
+  max_epochs: 150
   prod_fea: 0
   emb_need: True
   multi_purchase: False
@@ -17,5 +17,32 @@ swissmetro_TCNet:
   gamma: 0.95
   smoothing: 0.01
 
+swissmetro_ResAssortNet:
+  product_num: 3
+  product_feature_length: 3
+  customer_feature_length: 92
+  add_no_purchase: False
+  customer_encoder_midlayers: [512, 10]
+  product_encoder_midlayers: [10, 10]
+  cross_effect_layers: [6, 60, 6]
+  weight_decay: 0.0
+  scheduler_gamma: 0.99
+  learning_rate: 0.0005
+  max_epochs: 1000
+  test_size: 0.1
+  n_splits: 9
+  SEED: 42
+  batch_size: 512
+  smoothing: 0.01
 
-
+swissmetro_FATENet:
+  weight_decay: 0.0
+  learning_rate: 0.001
+  max_epochs: 200
+  test_size: 0.1
+  n_splits: 9
+  SEED: 42
+  batch_size: 512
+  smoothing: 0.01
+  scheduler_gamma: 0.99
+  step_size: 20
