@@ -46,3 +46,14 @@ swissmetro_FATENet:
   smoothing: 0.01
   scheduler_gamma: 0.99
   step_size: 20
+
+swissmetro_DLCL:
+  weight_decay: 0
+  learning_rate: 0.001
+  l1_reg: 0
+  max_epochs: 1000
+  test_size: 0.1
+  n_splits: 9
+  SEED: 42
+  batch_size: 64
+  smoothing: 0.01
